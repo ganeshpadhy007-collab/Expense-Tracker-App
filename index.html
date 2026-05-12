@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Expense Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+body { background: #f5f7fa; padding: 20px; }
+.container { max-width: 900px; margin: auto; }
+h1 { text-align: center; color: #2d3748; margin-bottom: 20px; }
+
+.balance-box { 
+  background: linear-gradient(135deg, #667eea, #764ba2); 
+  color: white; 
+  padding: 20px; 
+  border-radius: 12px; 
+  text-align: center;
+  margin-bottom: 20px;
+}
+.balance-box h2 { font-size: 36px; margin: 10px 0; }
+
+.summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+.income, .expense {
+  padding: 15px;
+  border-radius: 12px;
+  color: white;
+  text-align: center;
+}
+.income { background: #48bb78; }
+.expense { background: #f56565; }
+
+.form-box, .chart-box, .history-box {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+input, select, button {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+}
+button {
+  background: #667eea;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+button:hover { background: #5568d3; }
+
+.transaction {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+}
+.transaction.income { background: #f0fff4; color: #22543d; }
+.transaction.expense { background: #fff5f5; color: #742a2a; }
+.delete-btn {
+  background: #f56565;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>💰 Expense Tracker</h1>
+  
+  <div class="balance-box">
+    <h3>Your Balance</h3>
+    <h2 id="balance">₹0.00</h2>
+  </div>
+
+  <div class="summary">
+    <div class="income">
+      <h4>Income</h4>
+      <h3 id="income">₹0.00</h3>
+    </div>
+    <div class="expense">
+      <h4>Expense</h4>
+      <h3 id="expense">₹0.00</h3>
+    </div>
+  </div>
+
+  <div class="form-box">
+    <h3>Add Transaction</h3>
+    <input type="text" id="text" placeholder="Enter description...">
+    <input type="number" id="amount" placeholder="Enter amount...">
+    <select id="type">
+      <option value="income">Income</option>
+      <option value="expense">Expense</option>
+    </select>
+    <select id="category">
+      <option value="Salary">Salary</option>
+      <option value="Food">Food</option>
+      <option value="Travel">Travel</option>
+      <option value="Bills">Bills</option>
+      <option value="Other">Other</option>
+    </select>
+    <button onclick="addTransaction()">Add Transaction</button>
+  </div>
+
+  <div class="chart-box">
+    <h3>Expense Breakdown</h3>
+    <canvas id="myChart"></canvas>
+  </div>
+
+  <div class="history-box">
+    <h3>History</h3>
+    <div id="history"></div>
+  </div>
+</div>
+
+<script>
+let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+let chart;
+
+function init() {
+  updateValues();
+  updateHistory();
+  updateChart();
+}
+
+function addTransaction() {
+  const text = document.getElementById('text').value;
+  const amount = parseFloat(document.getElementById('amount').value);
+  const type = document.getElementById('type').value;
+  const category = document.getElementById('category').value;
+
+  if (!text || !amount) {
+    alert('Please fill all fields');
+    return;
+  }
+
+  const transaction = {
+    id: Date.now(),
+    text,
+    amount: type === 'expense'? -amount : amount,
+    type,
+    category
+  };
+
+  transactions.push(transaction);
+  saveToLocalStorage();
+  init();
+
+  document.getElementById('text').value = '';
+  document.getElementById('amount').value = '';
+}
+
+function deleteTransaction(id) {
+  transactions = transactions.filter(t => t.id!== id);
+  saveToLocalStorage();
+  init();
+}
+
+function updateValues() {
+  const amounts = transactions.map(t => t.amount);
+  const total = amounts.reduce((acc, item) => acc + item, 0).toFixed(2);
+  const income = amounts.filter(item => item > 0).reduce((acc, item) => acc + item, 0).toFixed(2);
+  const expense = (amounts.filter(item => item < 0).reduce((acc, item) => acc + item, 0) * -1).toFixed(2);
+
+  document.getElementById('balance').innerText = `₹${total}`;
+  document.getElementById('income').innerText = `₹${income}`;
+  document.getElementById('expense').innerText = `₹${expense}`;
+}
+
+function updateHistory() {
+  const history = document.getElementById('history');
+  history.innerHTML = '';
+  
+  transactions.slice().reverse().forEach(t => {
+    const sign = t.amount < 0? '-' : '+';
+    const div = document.createElement('div');
+    div.classList.add('transaction', t.type);
+    div.innerHTML = `
+      <span>${t.text} <small>(${t.category})</small></span>
+      <span>${sign}₹${Math.abs(t.amount).toFixed(2)} 
+        <span class="delete-btn" onclick="deleteTransaction(${t.id})">X</span>
+      </span>
+    `;
+    history.appendChild(div);
+  });
+}
+
+function updateChart() {
+  const expenseData = {};
+  transactions.forEach(t => {
+    if (t.amount < 0) {
+      expenseData[t.category] = (expenseData[t.category] || 0) + Math.abs(t.amount);
+    }
+  });
+
+  const ctx = document.getElementById('myChart').getContext('2d');
+  if (chart) chart.destroy();
+  
+  chart = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: Object.keys(expenseData),
+      datasets: [{
+        data: Object.values(expenseData),
+        backgroundColor: ['#f56565', '#ed8936', '#ecc94b', '#48bb78', '#4299e1']
+      }]
+    }
+  });
+}
+
+function saveToLocalStorage() {
+  localStorage.setItem('transactions', JSON.stringify(transactions));
+}
+
+init();
+</script>
+</body>
+</html>
