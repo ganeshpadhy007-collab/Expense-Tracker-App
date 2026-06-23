@@ -3,7 +3,7 @@
 A simple and intuitive web app to track your daily income & expenses. Built to help users manage personal finances and visualize spending habits.
 
 ### 🚀 Live Demo
-🔗 
+🔗 https://ganeshpadhy007-collab.github.io/Expense-Tracker-App/
 
 
 ### ✨ Features
